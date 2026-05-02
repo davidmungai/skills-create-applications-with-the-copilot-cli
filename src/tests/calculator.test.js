@@ -1,4 +1,4 @@
-const { calculate, normalizeOperator, run } = require("../calculator");
+const { calculate, modulo, normalizeOperator, power, run, squareRoot } = require("../calculator");
 
 describe("normalizeOperator", () => {
   test.each([
@@ -11,13 +11,21 @@ describe("normalizeOperator", () => {
     ["X", "multiplication"],
     ["multiply", "multiplication"],
     ["/", "division"],
-    ["divide", "division"]
+    ["divide", "division"],
+    ["%", "modulo"],
+    ["modulo", "modulo"],
+    ["^", "power"],
+    ["**", "power"],
+    ["power", "power"],
+    ["sqrt", "squareRoot"],
+    ["√", "squareRoot"],
+    ["squareRoot", "squareRoot"]
   ])("maps %s to %s", (input, expected) => {
     expect(normalizeOperator(input)).toBe(expected);
   });
 
   it("returns undefined for unsupported operators", () => {
-    expect(normalizeOperator("%")).toBeUndefined();
+    expect(normalizeOperator("foo")).toBeUndefined();
   });
 });
 
@@ -27,6 +35,12 @@ describe("calculate", () => {
     [10, "subtraction", 4, 6],
     [45, "multiplication", 2, 90],
     [20, "division", 5, 4],
+    [5, "modulo", 2, 1],
+    [20, "modulo", 6, 2],
+    [2, "power", 3, 8],
+    [2, "power", 5, 32],
+    [16, "squareRoot", undefined, 4],
+    [81, "squareRoot", undefined, 9],
     [-3, "addition", 7, 4],
     [9, "subtraction", -1, 10],
     [-6, "multiplication", 3, -18],
@@ -39,8 +53,46 @@ describe("calculate", () => {
     expect(() => calculate(10, "division", 0)).toThrow("Division by zero is not allowed.");
   });
 
+  it("throws for modulo by zero", () => {
+    expect(() => calculate(10, "modulo", 0)).toThrow("Division by zero is not allowed.");
+  });
+
+  it("throws for the square root of a negative number", () => {
+    expect(() => calculate(-1, "squareRoot")).toThrow("Square root is not defined for negative numbers.");
+  });
+
   it("throws for an unsupported operation", () => {
-    expect(() => calculate(10, "modulo", 3)).toThrow("Unsupported operation.");
+    expect(() => calculate(10, "factorial", 3)).toThrow("Unsupported operation.");
+  });
+});
+
+describe("standalone helpers", () => {
+  it("calculates modulo", () => {
+    expect(modulo(14, 5)).toBe(4);
+  });
+
+  it("calculates modulo for the image example", () => {
+    expect(modulo(5, 2)).toBe(1);
+  });
+
+  it("calculates power", () => {
+    expect(power(3, 4)).toBe(81);
+  });
+
+  it("calculates power for the image example", () => {
+    expect(power(2, 3)).toBe(8);
+  });
+
+  it("calculates square root", () => {
+    expect(squareRoot(49)).toBe(7);
+  });
+
+  it("calculates square root for the image example", () => {
+    expect(squareRoot(16)).toBe(4);
+  });
+
+  it("rejects square root for negative numbers", () => {
+    expect(() => squareRoot(-49)).toThrow("Square root is not defined for negative numbers.");
   });
 });
 
@@ -57,14 +109,20 @@ describe("run", () => {
   });
 
   test.each([
-    [["2", "+", "3"], 5],
-    [["10", "-", "4"], 6],
-    [["45", "*", "2"], 90],
-    [["20", "/", "5"], 4]
-  ])("prints the result for %j", (args, expected) => {
-    const io = createIo();
+     [["2", "+", "3"], 5],
+     [["10", "-", "4"], 6],
+     [["45", "*", "2"], 90],
+     [["20", "/", "5"], 4],
+     [["5", "%", "2"], 1],
+     [["20", "%", "6"], 2],
+     [["2", "^", "3"], 8],
+     [["2", "^", "5"], 32],
+     [["√", "16"], 4],
+     [["sqrt", "49"], 7]
+   ])("prints the result for %j", (args, expected) => {
+     const io = createIo();
 
-    run(args, io);
+     run(args, io);
 
     expect(io.log).toHaveBeenCalledWith(expected);
     expect(io.error).not.toHaveBeenCalled();
@@ -77,7 +135,9 @@ describe("run", () => {
     run(["2", "+"], io);
 
     expect(io.log).toHaveBeenNthCalledWith(1, "Usage: node src/calculator.js <number> <operator> <number>");
-    expect(io.log).toHaveBeenNthCalledWith(2, "Example: node src/calculator.js 8 + 2");
+    expect(io.log).toHaveBeenNthCalledWith(2, "   or: node src/calculator.js <operator> <number>");
+    expect(io.log).toHaveBeenNthCalledWith(3, "Example: node src/calculator.js 8 + 2");
+    expect(io.log).toHaveBeenNthCalledWith(4, "Example: node src/calculator.js sqrt 9");
     expect(process.exitCode).toBe(1);
   });
 
@@ -93,9 +153,9 @@ describe("run", () => {
   it("reports invalid operators", () => {
     const io = createIo();
 
-    run(["2", "%", "3"], io);
+    run(["2", "foo", "3"], io);
 
-    expect(io.error).toHaveBeenCalledWith("Operator must be one of +, -, *, /, add, subtract, multiply, or divide.");
+    expect(io.error).toHaveBeenCalledWith("Operator must be one of +, -, *, /, %, ^, **, sqrt, √, add, subtract, multiply, divide, modulo, power, or squareRoot.");
     expect(process.exitCode).toBe(1);
   });
 
@@ -105,6 +165,42 @@ describe("run", () => {
     run(["10", "/", "0"], io);
 
     expect(io.error).toHaveBeenCalledWith("Division by zero is not allowed.");
+    expect(process.exitCode).toBe(1);
+  });
+
+  it("reports modulo by zero", () => {
+    const io = createIo();
+
+    run(["10", "%", "0"], io);
+
+    expect(io.error).toHaveBeenCalledWith("Division by zero is not allowed.");
+    expect(process.exitCode).toBe(1);
+  });
+
+  it("reports invalid square root input", () => {
+    const io = createIo();
+
+    run(["sqrt", "foo"], io);
+
+    expect(io.error).toHaveBeenCalledWith("The operand must be a valid number.");
+    expect(process.exitCode).toBe(1);
+  });
+
+  it("reports square root of a negative number", () => {
+    const io = createIo();
+
+    run(["sqrt", "-9"], io);
+
+    expect(io.error).toHaveBeenCalledWith("Square root is not defined for negative numbers.");
+    expect(process.exitCode).toBe(1);
+  });
+
+  it("reports extra operands for square root", () => {
+    const io = createIo();
+
+    run(["9", "sqrt", "3"], io);
+
+    expect(io.error).toHaveBeenCalledWith("Square root expects exactly one operand.");
     expect(process.exitCode).toBe(1);
   });
 });
