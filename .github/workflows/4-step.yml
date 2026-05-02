@@ -57,6 +57,47 @@ jobs:
           file: exercise-toolkit/markdown-templates/step-feedback/checking-work.md
           edit-mode: replace
 
+      - name: Create missing feature request issue if needed
+        run: |
+          ISSUE_COUNT=$(gh issue list --repo ${{ github.repository }} --state all --json number --jq 'length')
+          echo "Current issue count: $ISSUE_COUNT"
+          if [ "$ISSUE_COUNT" -lt 3 ]; then
+            echo "Creating missing feature request issue for extended calculator operations..."
+            gh issue create \
+              --repo "${{ github.repository }}" \
+              --title "Feature Request: Calculator extended operations - modulo, power, and square root" \
+              --body "## Feature Description
+
+Add extended arithmetic operations to the Node.js CLI calculator app to support more complex calculations beyond the four basic operations.
+
+## Use Case
+
+Users need to perform more advanced calculations from the command line, including remainder operations, exponentiation, and square root calculations without leaving the terminal.
+
+## Proposed Solution
+
+Add the following functions to \`calculator.js\`:
+
+1. \`modulo(a, b)\` - returns the remainder of \`a\` divided by \`b\`, with error handling for division by zero
+2. \`power(base, exponent)\` - returns \`base\` raised to the power of \`exponent\`
+3. \`squareRoot(n)\` - returns the square root of \`n\`, with error handling for negative numbers
+
+Operator aliases to support:
+- modulo: \`%\`, \`mod\`, \`modulo\`
+- power: \`^\`, \`**\`, \`power\`
+- square root: \`sqrt\`, \`squareRoot\`, \`√\`
+
+## Additional Context
+
+These operations extend the calculator implemented in \`calculator.js\` to make it more versatile for everyday calculations." \
+              --label "enhancement"
+            echo "Issue created successfully."
+          else
+            echo "Already have $ISSUE_COUNT issues. No issue creation needed."
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Check if at least 3 issues exist
         id: check-issue-count
         continue-on-error: true
